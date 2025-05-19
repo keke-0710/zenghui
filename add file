@@ -1,0 +1,62 @@
+//导入express模块
+const express = require('express');
+
+//导入path模块
+const path = require('path');
+
+//导入jsonwebtoken模块
+const jwt = require('jsonwebtoken');
+
+//导入express-jwt模块
+const expressJwt = require('express-jwt');
+
+//创建Web服务器实例对象
+const app = express();
+
+//设置静态资源托管
+app.use(express.static(path.join(__dirname, 'public')));
+
+//注册中间件自动解析application/json格式的POST请求参数
+app.use(express.json());
+
+//注册中间件自动解析加密的token字符串，解析完成后会创建一个对象挂载到req对象上，通过req.auth访问
+app.use(expressJwt.expressjwt({
+    secret: 'node.js',
+    algorithms: ['HS256']
+}).unless({
+    path: ['/login'] //指定哪些路由不需要解析token字符串
+
+}));
+
+//创建POST请求方式路由
+app.post('/login', (req, res) => {
+    const username = req.body.username;
+    const password = req.body.password;
+    if (!(username == 'xiaoming' && password == '123456')) {
+        res.send({ msg: 'failure', str: '登录失败' });
+    } else {
+        //生成加密的token字符串发送给客户端
+        const tokenStr = jwt.sign({ username: username }, 'node.js', { expiresIn: '10s' });
+        res.send({ msg: 'success', str: '登录成功', token: tokenStr });
+    }
+});
+
+//创建GET请求方式路由
+app.get('/user', (req, res) => {
+    //验证用户的身份
+    if (req.auth.username == 'xiaoming') {
+        res.send({ msg: 'success', str: '您的用户名是xiaoming' });
+    }
+});
+
+//注册全局错误中间件处理解析加密的token字符串时产生的错误
+app.use((err, req, res, next) => {
+    if (err.name == 'UnauthorizedError') {
+        res.send({ msg: 'failure', str: '请先完成登录操作' });
+    }
+});
+
+//监听3000端口
+app.listen(3000, () => {
+    console.log('服务器已启动...');
+});
